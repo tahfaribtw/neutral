@@ -193,16 +193,24 @@ export class Bot {
    */
   load(file) { return this.#track(this.#loadFile(file, 0)); }
 
-  /** Load every .js / .mjs file in a folder, A to Z. Files starting with _ are skipped (handy for helpers). Returns the names. */
+  /** Load every .js / .mjs file in a folder and its subfolders, A to Z. Files and folders starting with _ are skipped. Returns the names. */
   loadCogs(dir = './cogs') {
     return this.#track((async () => {
       const { abs } = await locate(dir);
       const [fs, path] = await Promise.all([import('node:fs/promises'), import('node:path')]);
-      const files = (await fs.readdir(abs, { withFileTypes: true }))
-        .filter((d) => d.isFile() && /\.m?js$/i.test(d.name) && !/^[_.]/.test(d.name))
-        .map((d) => d.name).sort();
+      const files = [];
+      const collect = async (folder) => {
+        const entries = (await fs.readdir(folder, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+        for (const entry of entries) {
+          if (/^[_.]/.test(entry.name)) continue;
+          const file = path.join(folder, entry.name);
+          if (entry.isDirectory()) await collect(file);
+          else if (entry.isFile() && /\.m?js$/i.test(entry.name)) files.push(file);
+        }
+      };
+      await collect(abs);
       const names = [];
-      for (const f of files) names.push(await this.#loadFile(path.join(abs, f), 0));
+      for (const file of files) names.push(await this.#loadFile(file, 0));
       return names;
     })());
   }

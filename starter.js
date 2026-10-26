@@ -5,21 +5,13 @@
 //   3. Add the bot to a server you manage (same place), then run:  node starter.js
 import { Bot } from './yapper.js';
 
-const bot = new Bot(process.env.YAPPER_BOT_TOKEN || 'PASTE_YOUR_TOKEN_HERE');
+const bot = new Bot('yb_efcca2d9.qNhikI_isisKwyNkyld9W1SSzQPdfwzt7BVoEFPl', { prefixes: ['?'] });
 
-// /ping → pong. Shows up in the "/" menu for everyone in the server.
-bot.command('ping', 'Is the bot alive?', (msg) => msg.reply('pong 🏓'));
-
-// /roll 20 → a dice roll.
-bot.command('roll', 'Roll a die, like /roll 20', (msg) => {
-  const n = Number(msg.argv[0]);
-  const sides = Number.isSafeInteger(n) && n >= 2 && n <= 1000 ? n : 6; // no -5, 2.5 or Infinity
-  msg.reply(`🎲 ${1 + Math.floor(Math.random() * sides)} (d${sides})`);
-});
+await bot.loadCogs('./commands');
 
 // Any message that @mentions the bot.
 bot.on('message', (msg) => {
-  if (msg.mentioned) msg.reply(`hey ${msg.authorMention}, try /ping`);
+  if (msg.mentioned) msg.reply(`hey ${msg.authorMention}, try ?ping`);
 });
 
 // Someone joined one of the bot's servers.
