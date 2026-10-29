@@ -1,2 +1,0 @@
-# neutral
-bot for yapper
