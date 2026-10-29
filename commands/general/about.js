@@ -6,6 +6,6 @@ export function setup(bot) {
       .title('Neutral')
       .description('A small Yapin’ bot.')
       .color('green')
-      .field('Commands', '?ping, ?roll [sides], ?vote, ?channels, ?profile, ?serverinfo, ?roles, ?voice, ?kick, ?ban, ?unban, ?purge [1-50]')],
+      .field('Commands', '?ping, ?roll [sides], ?poll <question> | <choice> | <choice>, ?pollresults <message-id>, ?myservers, ?channels, ?profile, ?serverinfo, ?roles, ?voice')],
   }));
 }
