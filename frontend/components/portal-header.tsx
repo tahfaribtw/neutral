@@ -29,6 +29,7 @@ export function PortalHeader({ user }: { user: YapperUser | null }) {
                 alt=""
                 className="account-avatar"
                 height={34}
+                loading="eager"
                 src={user.avatarUrl}
                 unoptimized
                 width={34}

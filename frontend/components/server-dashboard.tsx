@@ -1,6 +1,9 @@
 import Image from "next/image"
+import Link from "next/link"
 import { ArrowUpRight, Server, ShieldCheck } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
+import { RefreshButton } from "@/components/refresh-button"
 import type { ServerListResult } from "@/lib/yapin-servers"
 
 function initials(name: string) {
@@ -38,9 +41,12 @@ export function ServerDashboard({ result }: { result: ServerListResult }) {
           <h1>Neutral&apos;s servers</h1>
           <p>Servers where this bot has been added.</p>
         </div>
-        <div className="server-count">
-          <strong>{result.servers.length.toString().padStart(2, "0")}</strong>
-          <span>SERVER{result.servers.length === 1 ? "" : "S"}</span>
+        <div className="dashboard-heading-actions">
+          <RefreshButton />
+          <div className="server-count">
+            <strong>{result.servers.length.toString().padStart(2, "0")}</strong>
+            <span>SERVER{result.servers.length === 1 ? "" : "S"}</span>
+          </div>
         </div>
       </div>
 
@@ -67,32 +73,33 @@ export function ServerDashboard({ result }: { result: ServerListResult }) {
       ) : result.servers.length ? (
         <div className="server-list">
           {result.servers.map((server, index) => (
-            <article
+            <Link
               className="server-row"
+              href={`/dashboard/${server.id}`}
               key={server.id}
               style={{ "--row-index": index } as React.CSSProperties}
+              aria-label={`Manage ${server.name}`}
             >
               <div className="server-avatar">
                 <ServerIcon name={server.name} src={server.iconUrl} />
               </div>
               <div className="server-details">
                 <h2>{server.name}</h2>
-                <p>Yapin’ server</p>
               </div>
               <span className="server-member-mark">
                 <Server aria-hidden="true" size={16} />
               </span>
-            </article>
+            </Link>
           ))}
         </div>
       ) : (
         <div className="empty-state">
           <span className="empty-icon"><Server aria-hidden="true" size={24} /></span>
-          <h2>No servers yet</h2>
-          <p>Add your bot to a server, and it will appear here.</p>
-          <a href="https://www.yapin.gg/developers">
-            Bot setup guide <ArrowUpRight aria-hidden="true" size={15} />
-          </a>
+          <h2>No owned servers found</h2>
+          <p>Add Neutral to a server you own to manage its members here.</p>
+          <Button nativeButton={false} render={<a href="https://www.yapin.gg/developers" rel="noreferrer" target="_blank" />}>
+            Add bot to a server <ArrowUpRight aria-hidden="true" />
+          </Button>
         </div>
       )}
       <p className="privacy-note">

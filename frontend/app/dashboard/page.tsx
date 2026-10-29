@@ -12,11 +12,15 @@ export default async function DashboardPage() {
   if (!user) redirect("/")
 
   const result = await getBotServers()
+  const ownedResult = {
+    ...result,
+    servers: result.servers.filter((server) => server.ownerId === user.id),
+  }
 
   return (
     <main className="portal-shell">
       <PortalHeader user={user} />
-      <ServerDashboard result={result} />
+      <ServerDashboard result={ownedResult} />
     </main>
   )
 }
