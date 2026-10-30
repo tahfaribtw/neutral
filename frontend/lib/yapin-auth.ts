@@ -29,6 +29,14 @@ export function isOAuthConfigured() {
   )
 }
 
+export function getPublicAppUrl(path: string, fallbackUrl: string) {
+  const origin = process.env.YAPPER_REDIRECT_URI
+    ? new URL(process.env.YAPPER_REDIRECT_URI).origin
+    : new URL(fallbackUrl).origin
+
+  return new URL(path, origin)
+}
+
 function signature(payload: string, secret: string) {
   return createHmac("sha256", secret).update(payload).digest("base64url")
 }

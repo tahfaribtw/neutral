@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 
 import {
   createSession,
+  getPublicAppUrl,
   isOAuthConfigured,
   SESSION_COOKIE,
   STATE_COOKIE,
@@ -35,7 +36,7 @@ function clearStateCookie(response: NextResponse) {
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
-  const destination = new URL("/", request.url)
+  const destination = getPublicAppUrl("/", request.url)
   const state = url.searchParams.get("state")
   const stateCookie = request.headers
     .get("cookie")

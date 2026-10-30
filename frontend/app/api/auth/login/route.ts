@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto"
 import { NextResponse } from "next/server"
 
-import { isOAuthConfigured, STATE_COOKIE } from "@/lib/yapin-auth"
+import { getPublicAppUrl, isOAuthConfigured, STATE_COOKIE } from "@/lib/yapin-auth"
 
 export async function GET(request: Request) {
   if (!isOAuthConfigured()) {
-    return NextResponse.redirect(new URL("/?error=setup", request.url))
+    return NextResponse.redirect(getPublicAppUrl("/?error=setup", request.url))
   }
 
   const state = randomBytes(32).toString("base64url")
