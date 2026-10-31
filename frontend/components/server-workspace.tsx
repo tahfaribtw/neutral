@@ -8,6 +8,7 @@ import {
   AudioLines,
   Ban,
   Folder,
+  MessageSquareText,
   Pencil,
   Server,
   Shield,
@@ -40,8 +41,9 @@ import type {
   ChannelManagementData,
   ModerationData,
 } from "@/lib/yapin-servers"
+import type { WelcomeSettingsResult } from "@/lib/welcome-settings"
 
-type Tab = "overview" | "channels" | "moderation"
+type Tab = "overview" | "channels" | "welcome" | "moderation"
 type Action = "kick" | "ban" | "unban"
 
 function displayName(member: BotMember | BotBan) {
@@ -87,16 +89,22 @@ function ModerationForm({
   submitting: boolean
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
 }) {
-  const label = action === "unban" ? "Unban" : action === "kick" ? "Kick" : "Ban"
+  const labels: Record<Action, string> = {
+    kick: "Kick",
+    ban: "Ban",
+    unban: "Unban",
+  }
+  const label = labels[action]
   const userId = "userId" in user ? user.userId : user.id
   const [open, setOpen] = useState(false)
+  const Icon = action === "ban" ? Ban : action === "kick" ? UserRoundX : UserRound
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         className={buttonVariants({ size: "sm", variant: action === "ban" ? "destructive" : "outline" })}
       >
-        {action === "ban" ? <Ban aria-hidden="true" /> : action === "kick" ? <UserRoundX aria-hidden="true" /> : <UserRound aria-hidden="true" />}
+        <Icon aria-hidden="true" />
         {label}
       </DialogTrigger>
       <DialogContent>
@@ -379,16 +387,26 @@ export function ServerWorkspace({
   server,
   moderation,
   channelData,
+  welcome,
+  welcomeWebhookUrl,
+  webhookConfigured,
 }: {
   server: BotServer
   moderation: ModerationData
   channelData: ChannelManagementData
+  welcome: WelcomeSettingsResult
+  welcomeWebhookUrl: string | null
+  webhookConfigured: boolean
 }) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>("overview")
   const [filter, setFilter] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [channelSubmitting, setChannelSubmitting] = useState(false)
+  const [welcomeEnabled, setWelcomeEnabled] = useState(welcome.settings.enabled)
+  const [welcomeChannelId, setWelcomeChannelId] = useState(welcome.settings.channelId)
+  const [welcomeMessage, setWelcomeMessage] = useState(welcome.settings.message)
+  const [welcomeSaving, setWelcomeSaving] = useState(false)
   const query = filter.trim().toLowerCase()
   const members = moderation.members.filter((member) =>
     `${displayName(member)} ${member.username}`.toLowerCase().includes(query),
@@ -410,7 +428,7 @@ export function ServerWorkspace({
       const response = await fetch(endpoint, { method: "POST", body: formData })
       if (!response.ok) throw new Error("Moderation action failed")
 
-      const messages = {
+        const messages: Record<Action, { title: string; description: string }> = {
         kick: { title: "Member kicked", description: "The member was removed from this server." },
         ban: { title: "Member banned", description: "The member was banned from this server." },
         unban: { title: "Ban removed", description: "The member can join this server again." },
@@ -465,238 +483,350 @@ export function ServerWorkspace({
     }
   }
 
-  return (
-    <section className="server-workspace">
-      <a className="back-link" href="/dashboard"><ArrowLeft aria-hidden="true" size={16} /> All servers</a>
-      <div className="server-workspace-heading">
-        <div className="server-workspace-identity">
-          <div className="server-workspace-icon">
-            {server.iconUrl ? (
-              <Image alt="" height={56} src={server.iconUrl} unoptimized width={56} />
-            ) : (
-              <Server aria-hidden="true" size={23} />
-            )}
-          </div>
-          <div>
-            <span className="eyebrow">SERVER DASHBOARD</span>
-            <h1>{server.name}</h1>
-          </div>
-        </div>
-        <RefreshButton />
-      </div>
+  async function saveWelcomeSettings(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setWelcomeSaving(true)
+    try {
+      const response = await fetch(`/api/dashboard/${server.id}/welcome`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: welcomeEnabled,
+          channelId: welcomeChannelId,
+          message: welcomeMessage,
+        }),
+      })
+      const result = await response.json() as { error?: string }
+      if (!response.ok) throw new Error(result.error || "Could not save welcome settings.")
 
-      <div className="workspace-tabs" role="tablist" aria-label={`${server.name} dashboard`}>
-        <button
-          aria-controls="server-overview-panel"
-          aria-selected={tab === "overview"}
-          id="server-overview-tab"
-          onClick={() => setTab("overview")}
-          role="tab"
-          type="button"
-        >
-          Overview
-        </button>
-        <button
-          aria-controls="server-channels-panel"
-          aria-selected={tab === "channels"}
-          id="server-channels-tab"
-          onClick={() => setTab("channels")}
-          role="tab"
-          type="button"
-        >
-          Channels
-        </button>
-        <button
-          aria-controls="server-moderation-panel"
-          aria-selected={tab === "moderation"}
-          id="server-moderation-tab"
-          onClick={() => setTab("moderation")}
-          role="tab"
-          type="button"
-        >
-          Moderation
-        </button>
-      </div>
+      toast.add({
+        type: "success",
+        title: "Welcome settings saved",
+        description: welcomeEnabled ? "New members will receive your welcome message." : "Welcome messages are disabled.",
+        timeout: 5000,
+      })
+      router.refresh()
+    } catch (error) {
+      toast.add({
+        type: "error",
+        title: "Could not save welcome settings",
+        description: error instanceof Error ? error.message : "Please try again.",
+        timeout: 7000,
+      })
+    } finally {
+      setWelcomeSaving(false)
+    }
+  }
 
-      {tab === "overview" ? (
-        <div
-          aria-labelledby="server-overview-tab"
-          className="overview-panel"
-          id="server-overview-panel"
-          role="tabpanel"
-        >
-          <div className="overview-panel-heading">
-            <h2>Server summary</h2>
-            <p>Current information available to Neutral.</p>
-          </div>
-          <dl className="overview-stats">
-            <div className="overview-stat">
-              <dt><Users aria-hidden="true" size={15} /> Members</dt>
-              <dd>{moderation.membersError ? "—" : moderation.members.length === 500 ? "500+" : moderation.members.length}</dd>
-              <span>{moderation.membersError ? "Unavailable" : "Loaded members"}</span>
-            </div>
-            <div className="overview-stat">
-              <dt><Server aria-hidden="true" size={15} /> Channels</dt>
-              <dd>{channelData.error ? "—" : channelData.channels.length}</dd>
-              <span>{channelData.error ? "Unavailable" : "Text and voice"}</span>
-            </div>
-            <div className="overview-stat">
-              <dt><Folder aria-hidden="true" size={15} /> Categories</dt>
-              <dd>{channelData.error ? "—" : channelData.categories.length}</dd>
-              <span>{channelData.error ? "Unavailable" : "Server groups"}</span>
-            </div>
-            <div className="overview-stat">
-              <dt><Shield aria-hidden="true" size={15} /> Banned users</dt>
-              <dd>{moderation.bansError ? "—" : moderation.bans.length}</dd>
-              <span>{moderation.bansError ? "Unavailable" : "Active bans"}</span>
-            </div>
-          </dl>
-          <div className="overview-owner-note">
-            <Shield aria-hidden="true" size={16} />
-            <span>Owner access verified for this server.</span>
-          </div>
-        </div>
-      ) : tab === "channels" ? (
-        <div
-          aria-labelledby="server-channels-tab"
-          className="channels-panel"
-          id="server-channels-panel"
-          role="tabpanel"
-        >
-          <div className="moderation-heading">
-            <div>
-              <h2>Channels and categories</h2>
-              <p>Rename or remove text channels, voice channels, and categories.</p>
-            </div>
-          </div>
-          {channelData.error ? (
-            <DataNotice>
-              {channelData.error === "missing-token"
-                ? "The bot token is not configured."
-                : "Could not load this server’s channels. Check that the bot can manage channels."}
-            </DataNotice>
+  
+return (
+  <section className="server-workspace">
+    <a className="back-link" href="/dashboard">
+      <ArrowLeft aria-hidden="true" size={16} /> All servers
+    </a>
+
+    <div className="server-workspace-heading">
+      <div className="server-workspace-identity">
+        <div className="server-workspace-icon">
+          {server.iconUrl ? (
+            <Image
+              alt=""
+              height={56}
+              src={server.iconUrl}
+              unoptimized
+              width={56}
+            />
           ) : (
-            <>
-              <section className="moderation-section">
-                <div className="moderation-section-title">
-                  <h3>Categories</h3>
-                  <span>{channelData.categories.length}</span>
-                </div>
-                {channelData.categories.length ? (
-                  <div className="channel-management-list">
-                    {channelData.categories.map((category) => (
-                      <CategoryRow
-                        category={category}
-                        key={category.id}
-                        onSubmit={handleChannelManagement}
-                        serverId={server.id}
-                        submitting={channelSubmitting}
-                      />
-                    ))}
-                  </div>
-                ) : <DataNotice>No categories in this server.</DataNotice>}
-              </section>
-              {(["text", "voice"] as const).map((kind) => {
-                const channels = channelData.channels.filter((channel) => channel.kind === kind)
-                return (
-                  <section className="moderation-section" key={kind}>
-                    <div className="moderation-section-title">
-                      <h3>{kind === "voice" ? "Voice channels" : "Text channels"}</h3>
-                      <span>{channels.length}</span>
-                    </div>
-                    {channels.length ? (
-                      <div className="channel-management-list">
-                        {channels.map((channel) => (
-                          <ChannelRow
-                            channel={channel}
-                            key={channel.id}
-                            onSubmit={handleChannelManagement}
-                            serverId={server.id}
-                            submitting={channelSubmitting}
-                          />
-                        ))}
-                      </div>
-                    ) : <DataNotice>No {kind === "voice" ? "voice" : "text"} channels.</DataNotice>}
-                  </section>
-                )
-              })}
-            </>
+            <Server aria-hidden="true" size={23} />
           )}
         </div>
-      ) : (
-        <div
-          aria-labelledby="server-moderation-tab"
-          className="moderation-panel"
-          id="server-moderation-panel"
-          role="tabpanel"
-        >
-          <div className="moderation-heading">
-            <div>
-              <h2>Member moderation</h2>
-              <p>Kick or ban members, and remove existing bans. Yapin checks the bot&apos;s role permissions.</p>
-            </div>
-            <input
-              aria-label="Filter members and bans"
-              onChange={(event) => setFilter(event.target.value)}
-              placeholder="Find a member"
-              type="search"
-              value={filter}
-            />
+
+        <div>
+          <span className="eyebrow">SERVER DASHBOARD</span>
+          <h1>{server.name}</h1>
+        </div>
+      </div>
+
+      <RefreshButton />
+    </div>
+
+    <div
+      className="workspace-tabs"
+      role="tablist"
+      aria-label={`${server.name} dashboard`}
+    >
+      <button
+        aria-controls="server-overview-panel"
+        aria-selected={tab === "overview"}
+        id="server-overview-tab"
+        onClick={() => setTab("overview")}
+        role="tab"
+        type="button"
+      >
+        Overview
+      </button>
+
+      <button
+        aria-controls="server-channels-panel"
+        aria-selected={tab === "channels"}
+        id="server-channels-tab"
+        onClick={() => setTab("channels")}
+        role="tab"
+        type="button"
+      >
+        Channels
+      </button>
+
+
+      <button
+        aria-controls="server-moderation-panel"
+        aria-selected={tab === "moderation"}
+        id="server-moderation-tab"
+        onClick={() => setTab("moderation")}
+        role="tab"
+        type="button"
+      >
+        Moderation
+      </button>
+    </div>
+
+    {tab === "overview" ? (
+      <div
+        aria-labelledby="server-overview-tab"
+        className="overview-panel"
+        id="server-overview-panel"
+        role="tabpanel"
+      >
+        <div className="overview-panel-heading">
+          <h2>Server summary</h2>
+          <p>Current information available to Neutral.</p>
+        </div>
+
+        <dl className="overview-stats">
+          <div className="overview-stat">
+            <dt>
+              <Users aria-hidden="true" size={15} /> Members
+            </dt>
+            <dd>
+              {moderation.membersError
+                ? "—"
+                : moderation.members.length === 500
+                  ? "500+"
+                  : moderation.members.length}
+            </dd>
+            <span>
+              {moderation.membersError ? "Unavailable" : "Loaded members"}
+            </span>
           </div>
 
-          <section className="moderation-section">
-            <div className="moderation-section-title">
-              <h3>Members</h3>
-              <span>{moderation.members.length}</span>
-            </div>
-            {moderation.membersError ? (
-              <DataNotice>
-                Could not load members. Check that the bot is in the server and has permission to view members.
-              </DataNotice>
-            ) : members.length ? (
-              <div className="moderation-user-list">
-                {members.map((member) => (
-                  <MemberRow
-                    key={member.id}
-                    member={member}
-                    server={server}
-                    submitting={submitting}
-                    onSubmit={handleModeration}
-                  />
-                ))}
-              </div>
-            ) : (
-              <DataNotice>{query ? "No matching members." : "No members found."}</DataNotice>
-            )}
-          </section>
+          <div className="overview-stat">
+            <dt>
+              <Server aria-hidden="true" size={15} /> Channels
+            </dt>
+            <dd>
+              {channelData.error ? "—" : channelData.channels.length}
+            </dd>
+            <span>
+              {channelData.error ? "Unavailable" : "Text and voice"}
+            </span>
+          </div>
 
-          <section className="moderation-section">
-            <div className="moderation-section-title">
-              <h3>Banned users</h3>
-              <span>{moderation.bans.length}</span>
-            </div>
-            {moderation.bansError ? (
-              <DataNotice>
-                Could not load bans. The bot needs permission to view the server’s ban list.
-              </DataNotice>
-            ) : bans.length ? (
-              <div className="moderation-user-list">
-                {bans.map((ban) => (
-                  <BanRow
-                    key={ban.userId}
-                    ban={ban}
-                    serverId={server.id}
-                    submitting={submitting}
-                    onSubmit={handleModeration}
-                  />
-                ))}
-              </div>
-            ) : (
-              <DataNotice>{query ? "No matching bans." : "No banned users."}</DataNotice>
-            )}
-          </section>
+          <div className="overview-stat">
+            <dt>
+              <Folder aria-hidden="true" size={15} /> Categories
+            </dt>
+            <dd>
+              {channelData.error ? "—" : channelData.categories.length}
+            </dd>
+            <span>
+              {channelData.error ? "Unavailable" : "Server groups"}
+            </span>
+          </div>
+
+          <div className="overview-stat">
+            <dt>
+              <Shield aria-hidden="true" size={15} /> Banned users
+            </dt>
+            <dd>{moderation.bansError ? "—" : moderation.bans.length}</dd>
+            <span>
+              {moderation.bansError ? "Unavailable" : "Active bans"}
+            </span>
+          </div>
+        </dl>
+
+        <div className="overview-owner-note">
+          <Shield aria-hidden="true" size={16} />
+          <span>Owner access verified for this server.</span>
         </div>
+      </div>
+
+    ) : tab === "channels" ? (
+
+  <div
+    aria-labelledby="server-channels-tab"
+    className="channels-panel"
+    id="server-channels-panel"
+    role="tabpanel"
+  >
+    <div className="moderation-heading">
+      <div>
+        <h2>Channels and categories</h2>
+        <p>Rename or remove text channels, voice channels, and categories.</p>
+      </div>
+    </div>
+
+    {channelData.error ? (
+      <DataNotice>
+        {channelData.error === "missing-token"
+          ? "The bot token is not configured."
+          : "Could not load this server’s channels. Check that the bot can manage channels."}
+      </DataNotice>
+    ) : (
+      <>
+        <section className="moderation-section">
+          <div className="moderation-section-title">
+            <h3>Categories</h3>
+            <span>{channelData.categories.length}</span>
+          </div>
+
+          {channelData.categories.length ? (
+            <div className="channel-management-list">
+              {channelData.categories.map((category) => (
+                <CategoryRow
+                  category={category}
+                  key={category.id}
+                  onSubmit={handleChannelManagement}
+                  serverId={server.id}
+                  submitting={channelSubmitting}
+                />
+              ))}
+            </div>
+          ) : (
+            <DataNotice>No categories in this server.</DataNotice>
+          )}
+        </section>
+
+        {(["text", "voice"] as const).map((kind) => {
+          const channels = channelData.channels.filter(
+            (channel) => channel.kind === kind,
+          );
+
+          return (
+            <section className="moderation-section" key={kind}>
+              <div className="moderation-section-title">
+                <h3>{kind === "voice" ? "Voice channels" : "Text channels"}</h3>
+                <span>{channels.length}</span>
+              </div>
+
+              {channels.length ? (
+                <div className="channel-management-list">
+                  {channels.map((channel) => (
+                    <ChannelRow
+                      channel={channel}
+                      key={channel.id}
+                      onSubmit={handleChannelManagement}
+                      serverId={server.id}
+                      submitting={channelSubmitting}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <DataNotice>
+                  No {kind === "voice" ? "voice" : "text"} channels.
+                </DataNotice>
+              )}
+            </section>
+          );
+        })}
+      </>
+    )}
+  </div>
+) : tab === "moderation" ? (
+  <div
+    aria-labelledby="server-moderation-tab"
+    className="moderation-panel"
+    id="server-moderation-panel"
+    role="tabpanel"
+  >
+    <div className="moderation-heading">
+      <div>
+        <h2>Member moderation</h2>
+        <p>
+          Kick or ban members, and remove existing bans. Yapin checks the
+          bot&apos;s role permissions.
+        </p>
+      </div>
+
+      <input
+        aria-label="Filter members and bans"
+        onChange={(event) => setFilter(event.target.value)}
+        placeholder="Find a member"
+        type="search"
+        value={filter}
+      />
+    </div>
+
+    <section className="moderation-section">
+      <div className="moderation-section-title">
+        <h3>Members</h3>
+        <span>{moderation.members.length}</span>
+      </div>
+
+      {moderation.membersError ? (
+        <DataNotice>
+          Could not load members. Check that the bot is in the server and has
+          permission to view members.
+        </DataNotice>
+      ) : members.length ? (
+        <div className="moderation-user-list">
+          {members.map((member) => (
+            <MemberRow
+              key={member.id}
+              member={member}
+              server={server}
+              submitting={submitting}
+              onSubmit={handleModeration}
+            />
+          ))}
+        </div>
+      ) : (
+        <DataNotice>
+          {query ? "No matching members." : "No members found."}
+        </DataNotice>
       )}
     </section>
-  )
-}
+
+    <section className="moderation-section">
+      <div className="moderation-section-title">
+        <h3>Banned users</h3>
+        <span>{moderation.bans.length}</span>
+      </div>
+
+      {moderation.bansError ? (
+        <DataNotice>
+          Could not load bans. The bot needs permission to view the server’s ban
+          list.
+        </DataNotice>
+      ) : bans.length ? (
+        <div className="moderation-user-list">
+          {bans.map((ban) => (
+            <BanRow
+              key={ban.userId}
+              ban={ban}
+              serverId={server.id}
+              submitting={submitting}
+              onSubmit={handleModeration}
+            />
+          ))}
+        </div>
+      ) : (
+        <DataNotice>
+          {query ? "No matching bans." : "No banned users."}
+        </DataNotice>
+      )}
+    </section>
+  </div>
+) : null}
+ </section>
+
+)}

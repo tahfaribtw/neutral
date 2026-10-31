@@ -1,8 +1,9 @@
 import { cookies } from "next/headers"
-import { ArrowRight, LogIn, Server, ShieldCheck, Users } from "lucide-react"
+import { ArrowRight, LogIn } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { PortalHeader } from "@/components/portal-header"
+import { SupportDialog } from "@/components/support-dialog"
 import { isOAuthConfigured, readSession, SESSION_COOKIE } from "@/lib/yapin-auth"
 
 const loginErrors: Record<string, string> = {
@@ -33,7 +34,7 @@ export default async function Page({
           </p>   
           <div className="home-actions">
             {user ? (
-              <Button className="home-cta" nativeButton={false} render={<a href="/dashboard" />}>
+              <Button variant="secondary" size="lg" nativeButton={false} render={<a href="/dashboard" />}>
                 <span data-icon="inline-start"><ArrowRight aria-hidden="true" /></span>
                 Go to dashboard
               </Button>
@@ -45,11 +46,7 @@ export default async function Page({
             ) : (
               <p className="setup-hint">Configure OAuth in <code>.env.local</code> to enable sign-in.</p>
             )}
-          </div>
-          <div className="home-benefits" aria-label="Portal benefits">
-            <span><Server aria-hidden="true" size={15} /> One server list</span>
-            <span><Users aria-hidden="true" size={15} /> Every community</span>
-            <span><ShieldCheck aria-hidden="true" size={15} /> Private sign-in</span>
+            <SupportDialog />
           </div>
         </div>
       </section>

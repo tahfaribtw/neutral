@@ -1,6 +1,7 @@
 import Image from "next/image"
 import { ChevronDown, LayoutDashboard, LogIn, LogOut } from "lucide-react"
 
+import { ThemeToggle } from "@/components/theme-toggle"
 import type { YapperUser } from "@/lib/yapin-auth"
 
 function initials(name: string) {
@@ -18,11 +19,12 @@ export function PortalHeader({ user }: { user: YapperUser | null }) {
   return (
     <header className="portal-header">
       <a aria-label="Neutral home" className="wordmark" href="/">
-        neutral <span className="wordmark-divider">/</span>
-        <span className="wordmark-product">bot portal</span>
+        neutral.
       </a>
-      {user && displayName ? (
-        <details className="account-menu">
+      <div className="portal-header-actions">
+        <ThemeToggle />
+        {user && displayName ? (
+          <details className="account-menu">
           <summary className="account-menu-trigger">
             {user.avatarUrl ? (
               <Image
@@ -54,13 +56,14 @@ export function PortalHeader({ user }: { user: YapperUser | null }) {
               </button>
             </form>
           </div>
-        </details>
-      ) : (
-        <a className="header-login" href="/api/auth/login">
-          <LogIn aria-hidden="true" size={16} />
-          Login
-        </a>
-      )}
+          </details>
+        ) : (
+          <a className="header-login" href="/api/auth/login">
+            <LogIn aria-hidden="true" size={16} />
+            Login
+          </a>
+        )}
+      </div>
     </header>
   )
 }

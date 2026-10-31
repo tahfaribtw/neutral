@@ -305,8 +305,9 @@ export async function moderateBotServer(
     : action === "ban"
       ? `/servers/${encodeURIComponent(serverId)}/bans`
       : `/servers/${encodeURIComponent(serverId)}/bans/${encodeURIComponent(userId)}`
+  const method = action === "unban" ? "DELETE" : "POST"
   const response = await botApi(path, {
-    method: action === "unban" ? "DELETE" : "POST",
+    method,
     ...(action === "unban"
       ? {}
       : {

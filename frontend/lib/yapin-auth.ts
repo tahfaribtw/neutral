@@ -30,9 +30,8 @@ export function isOAuthConfigured() {
 }
 
 export function getPublicAppUrl(path: string, fallbackUrl: string) {
-  const origin = process.env.YAPPER_REDIRECT_URI
-    ? new URL(process.env.YAPPER_REDIRECT_URI).origin
-    : new URL(fallbackUrl).origin
+  const publicUrl = process.env.YAPPER_PUBLIC_URL || process.env.YAPPER_REDIRECT_URI || fallbackUrl
+  const origin = new URL(publicUrl).origin
 
   return new URL(path, origin)
 }

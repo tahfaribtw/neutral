@@ -9,6 +9,7 @@ import {
   getServerChannelData,
   getServerModerationData,
 } from "@/lib/yapin-servers"
+import { getWelcomeSettings, welcomeWebhookConfigured } from "@/lib/welcome-settings"
 
 export default async function ServerPage({
   params,
@@ -22,14 +23,25 @@ export default async function ServerPage({
   const server = await getOwnedBotServer(serverId, user.id)
   if (!server) notFound()
 
-  const [moderation, channelData] = await Promise.all([
+  const [moderation, channelData, welcome] = await Promise.all([
     getServerModerationData(server.id),
     getServerChannelData(server.id),
+    getWelcomeSettings(server.id, user.id),
   ])
+  const publicUrl = process.env.YAPPER_PUBLIC_URL?.replace(/\/+$/, "")
+  const welcomeWebhookUrl = publicUrl ? `${publicUrl}/api/yapin/events` : null
+
   return (
     <main className="portal-shell">
       <PortalHeader user={user} />
-      <ServerWorkspace server={server} moderation={moderation} channelData={channelData} />
+      <ServerWorkspace
+        server={server}
+        moderation={moderation}
+        channelData={channelData}
+        welcome={welcome}
+        welcomeWebhookUrl={welcomeWebhookUrl}
+        webhookConfigured={welcomeWebhookConfigured()}
+      />
     </main>
   )
 }
