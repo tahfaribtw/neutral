@@ -120,13 +120,15 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+  }
+
   body {
     @apply bg-background text-foreground;
-    }
+  }
+
   html {
     @apply font-sans;
-    }
+  }
 }
 
   .portal-shell {
@@ -165,35 +167,15 @@
     gap: 8px;
   }
 
-  .theme-toggle {
-    color: var(--muted-foreground);
-  }
-
+  .theme-toggle { color: var(--muted-foreground); }
   .theme-toggle:hover { color: var(--foreground); }
 
-  .wordmark,
-  .header-link,
-  .account-identity,
-  .account-control,
-  .portal-footer a,
-  .login-assurance,
-  .empty-state a {
+  .wordmark {
     display: inline-flex;
     align-items: center;
-  }
-
-  .wordmark {
     color: var(--ink);
     font-size: 19px;
     font-weight: 750;
-    text-decoration: none;
-  }
-
-  .header-link {
-    gap: 6px;
-    color: var(--muted-foreground);
-    font-size: 13px;
-    font-weight: 600;
     text-decoration: none;
   }
 
@@ -220,9 +202,7 @@
     background: var(--muted);
   }
 
-  .account-menu {
-    position: relative;
-  }
+  .account-menu { position: relative; }
 
   .account-menu-trigger {
     display: inline-flex;
@@ -237,14 +217,10 @@
     list-style: none;
   }
 
-  .account-menu-trigger::-webkit-details-marker {
-    display: none;
-  }
+  .account-menu-trigger::-webkit-details-marker { display: none; }
 
   .account-menu-trigger:hover,
-  .account-menu[open] .account-menu-trigger {
-    background: var(--muted);
-  }
+  .account-menu[open] .account-menu-trigger { background: var(--muted); }
 
   .account-name {
     max-width: 180px;
@@ -258,9 +234,7 @@
     transition: transform 150ms ease;
   }
 
-  .account-menu[open] .account-chevron {
-    transform: rotate(180deg);
-  }
+  .account-menu[open] .account-chevron { transform: rotate(180deg); }
 
   .account-dropdown {
     position: absolute;
@@ -1015,152 +989,6 @@
 
   .moderation-panel { padding-top: 24px; }
 
-  .welcome-panel { padding-top: 24px; }
-
-  .welcome-panel-heading {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .welcome-panel-icon {
-    display: grid;
-    width: 40px;
-    height: 40px;
-    flex: 0 0 40px;
-    place-items: center;
-    border-radius: var(--radius);
-    background: var(--secondary);
-    color: var(--secondary-foreground);
-  }
-
-  .welcome-panel-heading h2 {
-    margin: 0;
-    color: var(--foreground);
-    font-size: 18px;
-    font-weight: 600;
-  }
-
-  .welcome-panel-heading p {
-    margin: 5px 0 0;
-    color: var(--muted-foreground);
-    font-size: 12px;
-  }
-
-  .welcome-form {
-    display: grid;
-    max-width: 680px;
-    gap: 20px;
-    margin-top: 25px;
-  }
-
-  .welcome-toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding-block: 15px;
-    border-block: 1px solid var(--border);
-  }
-
-  .welcome-toggle-row > span {
-    display: grid;
-    gap: 4px;
-  }
-
-  .welcome-toggle-row strong {
-    color: var(--foreground);
-    font-size: 13px;
-    font-weight: 550;
-  }
-
-  .welcome-toggle-row small,
-  .welcome-field small {
-    color: var(--muted-foreground);
-    font-size: 11px;
-    line-height: 1.5;
-  }
-
-  .welcome-switch {
-    position: relative;
-    width: 40px;
-    height: 23px;
-    flex: 0 0 40px;
-    padding: 2px;
-    border: 0;
-    border-radius: 999px;
-    background: var(--input);
-    cursor: pointer;
-    transition: background-color 150ms ease;
-  }
-
-  .welcome-switch[aria-checked="true"] { background: var(--primary); }
-  .welcome-switch:disabled { cursor: not-allowed; opacity: 0.5; }
-
-  .welcome-switch span {
-    display: block;
-    width: 19px;
-    height: 19px;
-    border-radius: 50%;
-    background: var(--background);
-    transition: transform 150ms ease;
-  }
-
-  .welcome-switch[aria-checked="true"] span { transform: translateX(17px); }
-
-  .welcome-field {
-    display: grid;
-    gap: 7px;
-    color: var(--foreground);
-    font-size: 12px;
-    font-weight: 550;
-  }
-
-  .welcome-field select,
-  .welcome-field textarea {
-    width: 100%;
-    border: 1px solid var(--input);
-    border-radius: var(--radius);
-    background: var(--background);
-    color: var(--foreground);
-    font: inherit;
-    font-size: 13px;
-  }
-
-  .welcome-field select {
-    height: 38px;
-    padding: 0 10px;
-  }
-
-  .welcome-field textarea {
-    min-height: 112px;
-    resize: vertical;
-    padding: 10px;
-    line-height: 1.5;
-  }
-
-  .welcome-field select:focus-visible,
-  .welcome-field textarea:focus-visible,
-  .welcome-switch:focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 2px;
-  }
-
-  .welcome-field select:disabled { opacity: 0.55; }
-
-  .welcome-form-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .welcome-form-footer > span {
-    color: var(--muted-foreground);
-    font-size: 11px;
-    font-variant-numeric: tabular-nums;
-  }
-
   .moderation-heading {
     display: flex;
     align-items: end;
@@ -1397,7 +1225,6 @@
     .overview-stat:nth-child(n + 3) { border-top: 1px solid var(--border); }
     .moderation-heading { align-items: stretch; flex-direction: column; gap: 14px; }
     .moderation-heading input { width: 100%; }
-    .welcome-form { width: 100%; }
     .channel-management-row { gap: 9px; }
     .channel-row-actions { gap: 2px; }
   }

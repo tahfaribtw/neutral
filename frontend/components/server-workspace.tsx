@@ -8,7 +8,6 @@ import {
   AudioLines,
   Ban,
   Folder,
-  MessageSquareText,
   Pencil,
   Server,
   Shield,
@@ -41,9 +40,8 @@ import type {
   ChannelManagementData,
   ModerationData,
 } from "@/lib/yapin-servers"
-import type { WelcomeSettingsResult } from "@/lib/welcome-settings"
 
-type Tab = "overview" | "channels" | "welcome" | "moderation"
+type Tab = "overview" | "channels" | "moderation"
 type Action = "kick" | "ban" | "unban"
 
 function displayName(member: BotMember | BotBan) {
@@ -387,26 +385,16 @@ export function ServerWorkspace({
   server,
   moderation,
   channelData,
-  welcome,
-  welcomeWebhookUrl,
-  webhookConfigured,
 }: {
   server: BotServer
   moderation: ModerationData
   channelData: ChannelManagementData
-  welcome: WelcomeSettingsResult
-  welcomeWebhookUrl: string | null
-  webhookConfigured: boolean
 }) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>("overview")
   const [filter, setFilter] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [channelSubmitting, setChannelSubmitting] = useState(false)
-  const [welcomeEnabled, setWelcomeEnabled] = useState(welcome.settings.enabled)
-  const [welcomeChannelId, setWelcomeChannelId] = useState(welcome.settings.channelId)
-  const [welcomeMessage, setWelcomeMessage] = useState(welcome.settings.message)
-  const [welcomeSaving, setWelcomeSaving] = useState(false)
   const query = filter.trim().toLowerCase()
   const members = moderation.members.filter((member) =>
     `${displayName(member)} ${member.username}`.toLowerCase().includes(query),
@@ -483,42 +471,6 @@ export function ServerWorkspace({
     }
   }
 
-  async function saveWelcomeSettings(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setWelcomeSaving(true)
-    try {
-      const response = await fetch(`/api/dashboard/${server.id}/welcome`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          enabled: welcomeEnabled,
-          channelId: welcomeChannelId,
-          message: welcomeMessage,
-        }),
-      })
-      const result = await response.json() as { error?: string }
-      if (!response.ok) throw new Error(result.error || "Could not save welcome settings.")
-
-      toast.add({
-        type: "success",
-        title: "Welcome settings saved",
-        description: welcomeEnabled ? "New members will receive your welcome message." : "Welcome messages are disabled.",
-        timeout: 5000,
-      })
-      router.refresh()
-    } catch (error) {
-      toast.add({
-        type: "error",
-        title: "Could not save welcome settings",
-        description: error instanceof Error ? error.message : "Please try again.",
-        timeout: 7000,
-      })
-    } finally {
-      setWelcomeSaving(false)
-    }
-  }
-
-  
 return (
   <section className="server-workspace">
     <a className="back-link" href="/dashboard">
