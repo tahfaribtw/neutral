@@ -318,9 +318,9 @@
     display: grid;
     width: min(760px, 100%);
     max-width: 760px;
-    justify-items: center;
+    justify-items: left;
     gap: 19px;
-    text-align: center;
+    text-align: left;
     animation: rise-in 500ms both;
   }
 
@@ -343,7 +343,7 @@
     color: var(--muted-foreground);
     font-size: 15px;
     line-height: 1.75;
-    text-align: center;
+    text-align: left;
   }
 
   .home-actions {

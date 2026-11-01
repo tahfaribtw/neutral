@@ -97,7 +97,7 @@ export function ServerDashboard({ result }: { result: ServerListResult }) {
           <span className="empty-icon"><Server aria-hidden="true" size={24} /></span>
           <h2>No owned servers found</h2>
           <p>Add Neutral to a server you own to manage its members here.</p>
-          <Button nativeButton={false} render={<a href="https://www.yapin.gg/developers" rel="noreferrer" target="_blank" />}>
+          <Button nativeButton={false} render={<a href="https://yapin.gg/invite/b9gCNraQ5U" rel="noreferrer" target="_blank" />}>
             Add bot to a server <ArrowUpRight aria-hidden="true" />
           </Button>
         </div>
