@@ -16,7 +16,12 @@ export type BotMember = {
   displayName: string | null
   nickname: string | null
   avatarUrl: string | null
+  timeoutUntil: string | null
 }
+
+export type ModerationAction = "kick" | "ban" | "unban" | "timeout" | "untimeout"
+
+export const TIMEOUT_MAX_MINUTES = 40_320
 
 export type BotBan = {
   userId: string
@@ -73,6 +78,26 @@ function profileImageUrl(path: unknown) {
   return `https://files.yapper.website/avatars/${path}`
 }
 
+function readTimeoutUntil(member: Record<string, unknown>): string | null {
+  const raw = member.timeout ?? member.timeout_until ?? member.timed_out_until
+  if (raw == null || raw === false || raw === 0 || raw === "") return null
+
+  if (typeof raw === "string") {
+    const parsed = Date.parse(raw)
+    if (Number.isFinite(parsed)) {
+      return parsed > Date.now() ? new Date(parsed).toISOString() : null
+    }
+    return null
+  }
+
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+    const ms = raw > 1e12 ? raw : raw > 1e9 ? raw * 1000 : Date.now() + raw * 60_000
+    return ms > Date.now() ? new Date(ms).toISOString() : null
+  }
+
+  return null
+}
+
 function readMember(value: unknown): BotMember | null {
   if (!value || typeof value !== "object") return null
   const member = value as Record<string, unknown>
@@ -84,6 +109,7 @@ function readMember(value: unknown): BotMember | null {
     displayName: typeof member.display_name === "string" ? member.display_name : null,
     nickname: typeof member.nickname === "string" ? member.nickname : null,
     avatarUrl: profileImageUrl(member.avatar_path),
+    timeoutUntil: readTimeoutUntil(member),
   }
 }
 
@@ -297,9 +323,26 @@ export async function getServerModerationData(serverId: string): Promise<Moderat
 
 export async function moderateBotServer(
   serverId: string,
-  action: "kick" | "ban" | "unban",
+  action: ModerationAction,
   userId: string,
+  options?: { minutes?: number; reason?: string },
 ) {
+  if (action === "timeout" || action === "untimeout") {
+    const minutes = action === "untimeout" ? 0 : options?.minutes ?? 10
+    const body: { user_id: string; minutes: number; reason?: string } = {
+      user_id: userId,
+      minutes,
+    }
+    if (options?.reason) body.reason = options.reason
+
+    const response = await botApi(`/servers/${encodeURIComponent(serverId)}/timeouts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    return response?.ok ?? false
+  }
+
   const path = action === "kick"
     ? `/servers/${encodeURIComponent(serverId)}/kick`
     : action === "ban"

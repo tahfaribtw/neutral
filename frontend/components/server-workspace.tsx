@@ -1,16 +1,18 @@
 "use client"
 
 import Image from "next/image"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft,
   AudioLines,
   Ban,
+  Clock,
   Folder,
   Pencil,
   Server,
   Shield,
+  TimerOff,
   Trash2,
   UserRound,
   UserRoundX,
@@ -38,11 +40,24 @@ import type {
   BotServer,
   ChannelManagementAction,
   ChannelManagementData,
+  ModerationAction,
   ModerationData,
 } from "@/lib/yapin-servers"
 
 type Tab = "overview" | "channels" | "moderation"
-type Action = "kick" | "ban" | "unban"
+
+const TIMEOUT_PRESETS = [
+  { minutes: 5, label: "5 minutes" },
+  { minutes: 60, label: "1 hour" },
+  { minutes: 1_440, label: "1 day" },
+  { minutes: 10_080, label: "7 days" },
+] as const
+
+function formatTimeoutUntil(iso: string) {
+  const date = new Date(iso)
+  if (!Number.isFinite(date.getTime())) return "Timed out"
+  return `Timed out until ${date.toLocaleString()}`
+}
 
 function displayName(member: BotMember | BotBan) {
   return ("nickname" in member ? member.nickname : null) || member.displayName || member.username
@@ -81,21 +96,63 @@ function ModerationForm({
   submitting,
   onSubmit,
 }: {
-  action: Action
+  action: ModerationAction
   serverId: string
   user: BotMember | BotBan
   submitting: boolean
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<boolean>
 }) {
-  const labels: Record<Action, string> = {
+  const labels: Record<ModerationAction, string> = {
     kick: "Kick",
     ban: "Ban",
     unban: "Unban",
+    timeout: "Timeout",
+    untimeout: "Remove timeout",
   }
   const label = labels[action]
+  const name = displayName(user)
   const userId = "userId" in user ? user.userId : user.id
   const [open, setOpen] = useState(false)
-  const Icon = action === "ban" ? Ban : action === "kick" ? UserRoundX : UserRound
+  const [countdown, setCountdown] = useState(3)
+  const needsCountdown = action === "kick" || action === "ban" || action === "timeout"
+  const waiting = needsCountdown && countdown > 0
+  const Icon = action === "ban"
+    ? Ban
+    : action === "kick"
+      ? UserRoundX
+      : action === "timeout"
+        ? Clock
+        : action === "untimeout"
+          ? TimerOff
+          : UserRound
+
+  useEffect(() => {
+    if (!open || !needsCountdown) {
+      setCountdown(3)
+      return
+    }
+
+    setCountdown(3)
+    const id = window.setInterval(() => {
+      setCountdown((seconds) => Math.max(0, seconds - 1))
+    }, 1000)
+
+    return () => window.clearInterval(id)
+  }, [open, needsCountdown])
+
+  const actionVerb =
+    action === "kick" ? "Kick" : action === "ban" ? "Ban" : action === "timeout" ? "Timeout" : label
+  const actionGerund =
+    action === "kick" ? "Kicking" : action === "ban" ? "Banning" : action === "timeout" ? "Timing out" : "Working"
+
+  let confirmLabel = `Confirm ${label.toLowerCase()}`
+  if (submitting) {
+    confirmLabel = needsCountdown ? `${actionGerund} ${name}…` : "Working…"
+  } else if (waiting) {
+    confirmLabel = `${actionVerb} ${name} in ${countdown}s`
+  } else if (needsCountdown) {
+    confirmLabel = `${actionVerb} ${name} now`
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -107,23 +164,57 @@ function ModerationForm({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{label} {displayName(user)}?</DialogTitle>
+          <DialogTitle>{label} {name}?</DialogTitle>
           <DialogDescription>
             {action === "kick"
               ? "This member will be removed from the server. They can rejoin unless they are banned."
               : action === "ban"
                 ? "This member will be banned from the server and will not be able to rejoin until unbanned."
-                : "This member will be able to rejoin the server again."}
+                : action === "timeout"
+                  ? "They will not be able to send messages, add reactions, or join voice until the timeout ends."
+                  : action === "untimeout"
+                    ? "This member will be able to talk and join voice again."
+                    : "This member will be able to rejoin the server again."}
           </DialogDescription>
         </DialogHeader>
         <form
           action={`/api/dashboard/${serverId}/moderation`}
           className="moderation-action-form"
           method="post"
-          onSubmit={onSubmit}
+          onSubmit={async (event) => {
+            if (waiting) {
+              event.preventDefault()
+              return
+            }
+            const success = await onSubmit(event)
+            if (success) setOpen(false)
+          }}
         >
           <input name="action" type="hidden" value={action} />
           <input name="user_id" type="hidden" value={userId} />
+          {action === "timeout" ? (
+            <div className="moderation-timeout-fields">
+              <label className="channel-name-field">
+                <span>Duration</span>
+                <select defaultValue="5" name="minutes">
+                  {TIMEOUT_PRESETS.map((preset) => (
+                    <option key={preset.minutes} value={preset.minutes}>
+                      {preset.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="channel-name-field">
+                <span>Reason (optional)</span>
+                <input
+                  autoComplete="off"
+                  maxLength={200}
+                  name="reason"
+                  placeholder="Shown in the audit log"
+                />
+              </label>
+            </div>
+          ) : null}
           <DialogFooter>
             <DialogClose
               disabled={submitting}
@@ -132,12 +223,13 @@ function ModerationForm({
               Cancel
             </DialogClose>
             <Button
-              disabled={submitting}
+              aria-live="polite"
+              disabled={submitting || waiting}
               size="sm"
               type="submit"
-              variant={action === "ban" ? "destructive" : "default"}
+              variant={needsCountdown ? "destructive" : "default"}
             >
-              {submitting ? "Working…" : `Confirm ${label.toLowerCase()}`}
+              {confirmLabel}
             </Button>
           </DialogFooter>
         </form>
@@ -155,7 +247,7 @@ function MemberRow({
   member: BotMember
   server: BotServer
   submitting: boolean
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<boolean>
 }) {
   return (
     <div className="moderation-user-row">
@@ -163,11 +255,18 @@ function MemberRow({
       <div className="moderation-user-name">
         <strong>{displayName(member)}</strong>
         <span>@{member.username}</span>
+        {member.timeoutUntil ? (
+          <span className="moderation-timeout-status">{formatTimeoutUntil(member.timeoutUntil)}</span>
+        ) : null}
       </div>
       {member.id === server.ownerId ? (
         <span className="owner-label">Server owner</span>
       ) : (
         <div className="moderation-actions">
+          <ModerationForm action="timeout" serverId={server.id} user={member} submitting={submitting} onSubmit={onSubmit} />
+          {member.timeoutUntil ? (
+            <ModerationForm action="untimeout" serverId={server.id} user={member} submitting={submitting} onSubmit={onSubmit} />
+          ) : null}
           <ModerationForm action="kick" serverId={server.id} user={member} submitting={submitting} onSubmit={onSubmit} />
           <ModerationForm action="ban" serverId={server.id} user={member} submitting={submitting} onSubmit={onSubmit} />
         </div>
@@ -185,7 +284,7 @@ function BanRow({
   ban: BotBan
   serverId: string
   submitting: boolean
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<boolean>
 }) {
   return (
     <div className="moderation-user-row">
@@ -407,29 +506,34 @@ export function ServerWorkspace({
     event.preventDefault()
     const form = event.currentTarget
     const formData = new FormData(form)
-    const action = formData.get("action") as Action
+    const action = formData.get("action") as ModerationAction
     const endpoint = form.getAttribute("action")
     if (!endpoint) throw new Error("Missing moderation endpoint")
 
     setSubmitting(true)
     try {
       const response = await fetch(endpoint, { method: "POST", body: formData })
-      if (!response.ok) throw new Error("Moderation action failed")
+      const result = await response.json() as { error?: string }
+      if (!response.ok) throw new Error(result.error || "Moderation action failed")
 
-        const messages: Record<Action, { title: string; description: string }> = {
+      const messages: Record<ModerationAction, { title: string; description: string }> = {
         kick: { title: "Member kicked", description: "The member was removed from this server." },
         ban: { title: "Member banned", description: "The member was banned from this server." },
         unban: { title: "Ban removed", description: "The member can join this server again." },
+        timeout: { title: "Member timed out", description: "The member cannot talk or join voice until the timeout ends." },
+        untimeout: { title: "Timeout removed", description: "The member can talk and join voice again." },
       }
       toast.add({ type: "success", ...messages[action], timeout: 5000 })
       router.refresh()
-    } catch {
+      return true
+    } catch (error) {
       toast.add({
         type: "error",
         title: "Moderation action failed",
-        description: "Check the bot’s permissions and try again.",
+        description: error instanceof Error ? error.message : "Check the bot’s Timeout permission and try again.",
         timeout: 7000,
       })
+      return false
     } finally {
       setSubmitting(false)
     }
@@ -704,8 +808,8 @@ return (
       <div>
         <h2>Member moderation</h2>
         <p>
-          Kick or ban members, and remove existing bans. Yapin checks the
-          bot&apos;s role permissions.
+          Timeout, kick, or ban members, and remove existing timeouts and bans.
+          Yapin checks the bot&apos;s role permissions.
         </p>
       </div>
 

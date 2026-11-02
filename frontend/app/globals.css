@@ -1102,6 +1102,30 @@
   .moderation-action-form { margin: 0; }
   .moderation-action-form button { gap: 5px; }
 
+  .moderation-timeout-fields {
+    display: grid;
+    gap: 4px;
+  }
+
+  .moderation-timeout-fields .channel-name-field:first-child { margin-top: 12px; }
+
+  .moderation-timeout-fields select {
+    width: 100%;
+    height: 38px;
+    padding: 0 10px;
+    border: 1px solid var(--input);
+    border-radius: var(--radius);
+    background: var(--background);
+    color: var(--foreground);
+    font: inherit;
+    font-size: 13px;
+  }
+
+  .moderation-user-name .moderation-timeout-status {
+    color: var(--destructive);
+    white-space: normal;
+  }
+
   .owner-label {
     color: var(--muted-foreground);
     font-size: 11px;
